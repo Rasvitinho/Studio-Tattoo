@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Database
 from app.routers import agenda, auth, funcionarios, financeiro, solicitacoes
 
+
 app = FastAPI(title="Studio Manager API")
 
 origins = [
@@ -25,3 +26,14 @@ app.include_router(agenda.router, prefix="/agenda", tags=["agenda"])
 app.include_router(funcionarios.router, prefix="/funcionarios", tags=["funcionarios"])
 app.include_router(financeiro.router, prefix="/financeiro", tags=["financeiro"])
 app.include_router(solicitacoes.router, prefix="/solicitacoes", tags=["solicitacoes"])
+
+
+@app.on_event("startup")
+async def startup():
+    app.state.db = Database()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    if hasattr(app.state, "db"):
+        app.state.db.conn.close()
