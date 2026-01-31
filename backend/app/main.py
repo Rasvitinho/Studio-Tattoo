@@ -8,6 +8,7 @@ app = FastAPI(title="Studio Manager API")
 origins = [
     "http://localhost:5173",
     "https://studio-tattoo.onrender.com",
+    "https://studio-tattoo-git-main-rasvitinhos-projects.vercel.app",
     "https://studio-tattoo-2xhv0caqz-rasvitinhos-projects.vercel.app",
 ]
 
