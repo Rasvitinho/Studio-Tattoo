@@ -5,13 +5,21 @@ from app.routers import agenda, auth, funcionarios, financeiro, solicitacoes
 
 app = FastAPI(title="Studio Manager API")
 
+from fastapi.middleware.cors import CORSMiddleware
+
+origins = [
+    "http://localhost:5173",
+    "https://studio-tattoo-2xhv0caqz-rasvitinhos-projects.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],          # em dev, tudo liberado
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(agenda.router, prefix="/agenda", tags=["agenda"])
