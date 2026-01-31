@@ -5,7 +5,8 @@ import GestorApp from "./areas/Gestor/GestorApp";
 import { ThemeProvider } from "./context/ThemeContext";
 import { StudioConfigProvider } from "./context/StudioConfigContext";
 
-const API_BASE = "http://localhost:8000";
+// pega da env, cai para localhost em desenvolvimento
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
 function App() {
   const [login, setLogin] = useState("");
