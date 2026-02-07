@@ -3,18 +3,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Database
 from app.routers import agenda, auth, funcionarios, financeiro, solicitacoes, ocr, clientes
 
+app = FastAPI(title="SLion1 Studio")
 
-app = FastAPI(title="Studio Manager API")
-
-
+# Adiciona CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],        # libera qualquer origem em DEV
+    allow_origins=[
+        "http://localhost:3000",  # desenvolvimento local React
+        "http://localhost:5173",  # se usar Vite
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+        "https://studio-tattoo-git-main-rasvitinhos-projects.vercel.app",  # sua Vercel
+        "*",  # libera qualquer origem em DEV (remova em produção se quiser ser mais restritivo)
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(agenda.router, prefix="/agenda", tags=["agenda"])
@@ -24,11 +29,9 @@ app.include_router(solicitacoes.router, prefix="/solicitacoes", tags=["solicitac
 app.include_router(ocr.router, prefix="/ocr", tags=["ocr"])
 app.include_router(clientes.router, prefix="/clientes", tags=["clientes"])
 
-
 @app.on_event("startup")
 async def startup():
     app.state.db = Database()
-
 
 @app.on_event("shutdown")
 async def shutdown():
