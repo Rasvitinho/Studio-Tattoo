@@ -14,7 +14,7 @@ class Database:
         #     ...PostgreSQL...
         
         # Usa sempre SQLite
-        self.conn = sqlite3.connect("studio_tattoo.db")
+        self.conn = sqlite3.connect("studio_tattoo.db", check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.cursor = self.conn.cursor()
         print("✅ Conectado ao SQLite local")
