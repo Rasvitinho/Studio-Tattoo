@@ -2,7 +2,9 @@ from datetime import date, timedelta
 import sqlite3
 import os
 
+
 DB_PATH = r"C:\Users\victor.silva\Desktop\Painel\Aplicativo\backend\seu_banco.db"
+
 
 class Database:
     def __init__(self, db_path: str = DB_PATH):
@@ -162,6 +164,21 @@ class Database:
         """
         )
 
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS clientes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                telefone TEXT,
+                email TEXT,
+                cpf TEXT,
+                endereco TEXT,
+                data_criacao TEXT,
+                status TEXT DEFAULT 'pre_cadastro'
+            )
+        """
+        )
+
         self.cursor.execute("INSERT OR IGNORE INTO config (id) VALUES (1)")
         self.conn.commit()
 
@@ -226,6 +243,18 @@ class Database:
             self.cursor.execute(
                 "ALTER TABLE agendamentos ADD COLUMN tipo TEXT DEFAULT 'tatuagem'"
             )
+        if "status" not in cols_ag:
+            self.cursor.execute(
+                "ALTER TABLE agendamentos ADD COLUMN status TEXT DEFAULT 'pre_cadastro'"
+            )
+
+        # clientes
+        self.cursor.execute("PRAGMA table_info(clientes)")
+        cols_clientes = [c[1] for c in self.cursor.fetchall()]
+        if "status" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN status TEXT DEFAULT 'pre_cadastro'"
+            )
 
         self.conn.commit()
 
@@ -243,18 +272,19 @@ class Database:
         return self.cursor.fetchone()
 
     # ---------- métodos usados pela agenda ----------
-
     def get_agendamentos_por_dia(self, data_str):
         self.cursor.execute(
             """
             SELECT a.id,
-                   a.horario,
-                   a.cliente,
-                   a.servico,
-                   f.nome,
-                   a.valor_previsto,
-                   a.aprovado
+                a.horario,
+                c.nome,
+                a.servico,
+                f.nome,
+                a.valor_previsto,
+                a.aprovado,
+                a.pago
             FROM agendamentos a
+            LEFT JOIN clientes c ON c.id = a.cliente_id
             LEFT JOIN funcionarios f ON a.funcionario_id = f.id
             WHERE a.data = ?
             ORDER BY a.horario ASC, f.nome ASC
@@ -273,13 +303,14 @@ class Database:
         valor_previsto,
         funcionario_id,
         aprovado=True,
+        status: str = "pre_cadastro",
     ):
         self.cursor.execute(
             """
             INSERT INTO agendamentos
-                (data, horario, cliente, servico, tipo,
-                 valor_previsto, funcionario_id, aprovado)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (data, horario, cliente_id, servico, tipo,
+                valor_previsto, funcionario_id, aprovado, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data_str,
@@ -290,6 +321,7 @@ class Database:
                 valor_previsto,
                 funcionario_id,
                 1 if aprovado else 0,
+                status,
             ),
         )
         self.conn.commit()
@@ -309,7 +341,7 @@ class Database:
             UPDATE agendamentos
             SET data = ?,
                 horario = ?,
-                cliente = ?,
+                cliente_id = ?,
                 servico = ?,
                 valor_previsto = ?,
                 funcionario_id = ?
@@ -340,15 +372,17 @@ class Database:
         self.cursor.execute(
             """
             SELECT
-                a.data,            -- 0
-                a.id,              -- 1
-                a.horario,         -- 2
-                a.cliente,         -- 3
-                a.servico,         -- 4
-                f.nome,            -- 5
-                a.valor_previsto,  -- 6
-                a.aprovado         -- 7
+                a.data,
+                a.id,
+                a.horario,
+                c.nome,
+                a.servico,
+                f.nome,
+                a.valor_previsto,
+                a.aprovado,
+                a.pago
             FROM agendamentos a
+            LEFT JOIN clientes c ON c.id = a.cliente_id
             LEFT JOIN funcionarios f ON a.funcionario_id = f.id
             WHERE a.data = ? AND a.funcionario_id = ?
             ORDER BY a.horario ASC, f.nome ASC
@@ -361,21 +395,46 @@ class Database:
         self.cursor.execute(
             """
             SELECT
-                a.data,            -- 0
-                a.id,              -- 1
-                a.horario,         -- 2
-                a.cliente,         -- 3
-                a.servico,         -- 4
-                f.nome,            -- 5
-                a.valor_previsto,  -- 6
-                a.aprovado,        -- 7
-                a.pago             -- 8
+                a.data,
+                a.id,
+                a.horario,
+                c.nome,
+                a.servico,
+                f.nome,
+                a.valor_previsto,
+                a.aprovado,
+                a.pago
             FROM agendamentos a
+            LEFT JOIN clientes c ON c.id = a.cliente_id
             LEFT JOIN funcionarios f ON a.funcionario_id = f.id
             WHERE a.data BETWEEN ? AND ?
             ORDER BY a.data ASC, a.horario ASC, f.nome ASC
             """,
             (data_ini, data_fim),
+        )
+        return self.cursor.fetchall()
+
+    def get_agendamentos_funcionario_periodo(self, data_ini, data_fim, funcionario_id):
+        self.cursor.execute(
+            """
+            SELECT
+                a.data,
+                a.id,
+                a.horario,
+                c.nome,
+                a.servico,
+                f.nome,
+                a.valor_previsto,
+                a.aprovado,
+                a.pago
+            FROM agendamentos a
+            LEFT JOIN clientes c ON c.id = a.cliente_id
+            LEFT JOIN funcionarios f ON a.funcionario_id = f.id
+            WHERE a.data BETWEEN ? AND ?
+            AND a.funcionario_id = ?
+            ORDER BY a.data ASC, a.horario ASC, f.nome ASC
+            """,
+            (data_ini, data_fim, funcionario_id),
         )
         return self.cursor.fetchall()
 
@@ -386,27 +445,6 @@ class Database:
         )
         self.conn.commit()
 
-    def get_agendamentos_funcionario_periodo(self, data_ini, data_fim, funcionario_id):
-        self.cursor.execute(
-            """
-            SELECT
-                a.data,            -- 0
-                a.id,              -- 1
-                a.horario,         -- 2
-                a.cliente,         -- 3
-                a.servico,         -- 4
-                f.nome,            -- 5
-                a.valor_previsto,  -- 6
-                a.aprovado         -- 7
-            FROM agendamentos a
-            LEFT JOIN funcionarios f ON a.funcionario_id = f.id
-            WHERE a.data BETWEEN ? AND ?
-            AND a.funcionario_id = ?
-            ORDER BY a.data ASC, a.horario ASC, f.nome ASC
-            """,
-            (data_ini, data_fim, funcionario_id),
-        )
-        return self.cursor.fetchall()
 
     # ---------- FUNCIONÁRIOS ----------
 

@@ -4,7 +4,9 @@ import "./gestor.css";
 import ConfigLayout from "../Admin/ConfigLayout";
 import { useStudioConfig } from "../../context/StudioConfigContext";
 import { useTheme } from "../../context/ThemeContext";
-
+import CadastroClientePage from "./CadastroClientePage";
+import ListaClientesPage from "./ListaClientesPage";
+import ModalPagamento from "./ModalPagamento";
 
 const inputStyle = {
   padding: 6,
@@ -49,6 +51,7 @@ function formatDataBr(dataStr) {
 
 function GestorApp({ user, apiBase, onLogout }) {
   console.log("USER NO GESTORAPP:", user);
+  console.log("TIPO GESTOR:", user?.tipo);
   const [view, setView] = useState("dashboard");
   const [proximosAgendamentos, setProximosAgendamentos] = useState([]);
   const [funcionarios, setFuncionarios] = useState([]);
@@ -102,6 +105,73 @@ function GestorApp({ user, apiBase, onLogout }) {
   const [dataFimFinancas, setDataFimFinancas] = useState("");
   const [financasGeral, setFinancasGeral] = useState(null);
   const [funcionarioSelecionado, setFuncionarioSelecionado] = useState(null);
+
+  // ===== MODAL DE PAGAMENTO =====
+  const [showModalPagamento, setShowModalPagamento] = useState(false);
+  const [agendamentoParaPagamento, setAgendamentoParaPagamento] = useState(null);
+  const [modoPagamento, setModoPagamento] = useState("dinheiro");
+  const [valorPago, setValorPago] = useState("");
+  const [descricaoPagamento, setDescricaoPagamento] = useState("");
+
+  function abrirModalPagamento(agendamento) {
+    // Se já está pago, pergunta se quer desmarcar
+    if (agendamento.pago) {
+      if (window.confirm("Desmarcar este agendamento como pago?")) {
+        desmarcarPagamento(agendamento.id);
+      }
+      return;
+    }
+    
+    // Se não está pago, abre o modal
+    setAgendamentoParaPagamento(agendamento);
+    setModoPagamento("dinheiro");
+    setValorPago(agendamento.valor_previsto?.toString() || "");
+    setDescricaoPagamento("");
+    setShowModalPagamento(true);
+  }
+
+  async function confirmarPagamento() {
+    if (!agendamentoParaPagamento) return;
+    
+    try {
+      await axios.put(
+        `${apiBase}/agenda/${agendamentoParaPagamento.id}/pagamento-com-historico`,
+        { pago: true }
+      );
+      
+      alert(`Pagamento confirmado!\nModo: ${modoPagamento}\nValor: R$ ${valorPago}`);
+      setShowModalPagamento(false);
+      setAgendamentoParaPagamento(null);
+      carregarAgendaGeral();
+    } catch (err) {
+      console.error("Erro ao confirmar pagamento:", err);
+      alert("Erro ao confirmar pagamento");
+    }
+  }
+
+  async function desmarcarPagamento(agendamentoId) {
+    try {
+      await axios.put(
+        `${apiBase}/agenda/${agendamentoId}/pagamento-com-historico`,
+        { pago: false }
+      );
+      
+      alert("Pagamento desmarcado!");
+      carregarAgendaGeral();
+    } catch (err) {
+      console.error("Erro ao desmarcar pagamento:", err);
+      alert("Erro ao desmarcar pagamento");
+    }
+  }
+
+  function fecharModalPagamento() {
+    setShowModalPagamento(false);
+    setAgendamentoParaPagamento(null);
+    setModoPagamento("dinheiro");
+    setValorPago("");
+    setDescricaoPagamento("");
+  }
+
 
 
   async function carregarDashboard() {
@@ -267,14 +337,10 @@ function GestorApp({ user, apiBase, onLogout }) {
   }
 
   async function marcarComoPago(agendamentoId, pago) {
-    try {
-      await axios.put(`${apiBase}/agenda/${agendamentoId}/pagamento`, {
-        pago,
-      });
-      alert(pago ? "Agendamento marcado como pago!" : "Pagamento desmarcado!");
-      carregarAgendaGeral();
-    } catch (err) {
-      console.error("Erro ao atualizar pagamento:", err);
+    // Abre o modal em vez de marcar direto
+    const agend = agendamentosGeral.find(a => a.id === agendamentoId);
+    if (agend) {
+      abrirModalPagamento(agend);
     }
   }
 
@@ -487,7 +553,7 @@ function GestorApp({ user, apiBase, onLogout }) {
           {studioName}
         </h3>
         <small
-          style={{
+           style={{
             fontSize: 12,
             marginBottom: 24,
             textAlign: "center",
@@ -506,6 +572,77 @@ function GestorApp({ user, apiBase, onLogout }) {
         >
           Agenda geral
         </button>
+
+            {(user.tipo === "gestor" || user.tipo === "superadmin") && (
+            <div
+              style={{
+                width: "100%",
+                marginTop: 8,
+                marginBottom: 4,
+              }}
+            >
+              {/* Botão principal Clientes */}
+              <button
+                style={btnStyle(
+                  view === "cadastro_cliente" || view === "lista_clientes",
+                  primaryColor
+                )}
+                onClick={() =>
+                  setView(
+                    view === "lista_clientes" ? "cadastro_cliente" : "lista_clientes"
+                  )
+                }
+              >
+                Clientes
+              </button>
+
+              {/* Submenu: só aparece quando está em uma das abas de cliente */}
+              {(view === "cadastro_cliente" || view === "lista_clientes") && (
+                <>
+                  <button
+                    style={{
+                      display: "block",
+                      width: "90%",
+                      marginLeft: 16,
+                      marginBottom: 4,
+                      padding: 8,
+                      borderRadius: 4,
+                      border: "none",
+                      background:
+                        view === "cadastro_cliente" ? primaryColor : "#555",
+                      color: "#fff",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      fontSize: 12,
+                    }}
+                    onClick={() => setView("cadastro_cliente")}
+                  >
+                    • Cadastro
+                  </button>
+
+                  <button
+                    style={{
+                      display: "block",
+                      width: "90%",
+                      marginLeft: 16,
+                      marginBottom: 8,
+                      padding: 8,
+                      borderRadius: 4,
+                      border: "none",
+                      background: view === "lista_clientes" ? primaryColor : "#555",
+                      color: "#fff",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      fontSize: 12,
+                    }}
+                    onClick={() => setView("lista_clientes")}
+                  >
+                    • Lista
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
         <button
           style={btnStyle(view === "financas", config?.primary_color || "#ff4500")}
@@ -587,6 +724,14 @@ function GestorApp({ user, apiBase, onLogout }) {
               </table>
             </div>
           </>
+        )}
+
+              {view === "cadastro_cliente" && (
+          <CadastroClientePage apiBase={apiBase} />
+        )}
+
+        {view === "lista_clientes" && (
+          <ListaClientesPage apiBase={apiBase} />
         )}
 
         {/* Agenda Geral */}
@@ -772,7 +917,15 @@ function GestorApp({ user, apiBase, onLogout }) {
                   </div>
                 </div>
               )}
+              {view === "cadastro_cliente" && (
+                <CadastroClientePage apiBase={apiBase} />
+              )}
+
+              {view === "lista_clientes" && (
+                <ListaClientesPage apiBase={apiBase} />
+              )}
             </div>
+            
 
             {/* Formulário para o gestor criar um agendamento */}
             <div
@@ -895,7 +1048,7 @@ function GestorApp({ user, apiBase, onLogout }) {
                     <tr key={a.id}>
                       <td className="gestor-td">{formatDataBr(a.data)}</td>
                       <td className="gestor-td">{a.horario}</td>
-                      <td className="gestor-td">{a.cliente}</td>
+                      <td className="gestor-td">{a.cliente_nome || a.cliente}</td>
                       <td className="gestor-td">{a.servico}</td>
                       <td className="gestor-td">{a.funcionario ?? "-"}</td>
                       <td
@@ -920,12 +1073,15 @@ function GestorApp({ user, apiBase, onLogout }) {
                           )}
 
                           <button
-                            onClick={() => marcarComoPago(a.id, !a.pago)}
+                            onClick={() => abrirModalPagamento(a)}
                             className="gestor-btn gestor-btn-paid"
                             style={a.pago ? { background: "#6c757d" } : {}}
+                            disabled={false}  // ← REMOVA O disabled={a.pago}
                           >
                             {a.pago ? "Desmarcar pago" : "Marcar pago"}
                           </button>
+
+
 
                           <button
                             onClick={() => editarAgendamento(a)}
@@ -945,11 +1101,12 @@ function GestorApp({ user, apiBase, onLogout }) {
                     </tr>
                   ))}
                 </tbody>
+
               </table>
             </div>
           </>
         )}
-
+        
         {/* Finanças Geral */}
         {view === "financas" && (
           <>
@@ -1295,6 +1452,19 @@ function GestorApp({ user, apiBase, onLogout }) {
         </div>
       )}
     </div>
+    <ModalPagamento
+          isOpen={showModalPagamento}
+          agendamento={agendamentoParaPagamento}
+          modoPagamento={modoPagamento}
+          setModoPagamento={setModoPagamento}
+          valorPago={valorPago}
+          setValorPago={setValorPago}
+          descricaoPagamento={descricaoPagamento}
+          setDescricaoPagamento={setDescricaoPagamento}
+          onConfirmar={confirmarPagamento}
+          onCancelar={fecharModalPagamento}
+          primaryColor={primaryColor}
+        />
   </div>
   );
 }

@@ -119,28 +119,38 @@ function App() {
     );
   }
 
-  const isFuncionario = user.tipo === "func" || user.tipo === "funcionario";
+  // trata funcionario, func e superadmin como "funcionário" para ver ficha
+  const isFuncionario =
+    user.tipo === "func" ||
+    user.tipo === "funcionario";
+
+  const isGestor = 
+    user.tipo === "gestor" ||
+    user.tipo === "superadmin";
+
+    console.log("isFuncionario:", isFuncionario);
+    console.log("user.tipo:", user.tipo); 
 
   // Depois de logado, envolve tudo com os providers
-  return (
-    <StudioConfigProvider apiBase={API_BASE}>
-      <ThemeProvider>
-        {isFuncionario ? (
-          <FuncionarioApp
-            user={user}
-            apiBase={API_BASE}
-            onLogout={handleLogout}
-          />
-        ) : (
-          <GestorApp
-            user={user}
-            apiBase={API_BASE}
-            onLogout={handleLogout}
-          />
-        )}
-      </ThemeProvider>
-    </StudioConfigProvider>
-  );
+    return (
+      <StudioConfigProvider apiBase={API_BASE}>
+        <ThemeProvider>
+          {isFuncionario ? (
+            <FuncionarioApp
+              user={user}
+              apiBase={API_BASE}
+              onLogout={handleLogout}
+            />
+          ) : isGestor ? (
+            <GestorApp
+              user={user}
+              apiBase={API_BASE}
+              onLogout={handleLogout}
+            />
+          ) : null}
+        </ThemeProvider>
+      </StudioConfigProvider>
+    );
 }
 
 export default App;

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useStudioConfig } from "../../context/StudioConfigContext";
 import { useTheme } from "../../context/ThemeContext";
+import CadastroClientePage from "../Gestor/CadastroClientePage";
 
 const inputStyle = {
   padding: 6,
@@ -334,6 +335,14 @@ function FuncionarioApp({ user, apiBase, onLogout }) {
           onClick={() => setView("minhas_financas")}
         >
           Minhas finanças
+        </button>
+
+        {/* NOVO: Cadastro de Cliente */}
+        <button
+          style={btnStyle(view === "cadastro_cliente", primaryColor)}
+          onClick={() => setView("cadastro_cliente")}
+        >
+          Cadastro de Cliente
         </button>
 
         <button
@@ -770,6 +779,14 @@ function FuncionarioApp({ user, apiBase, onLogout }) {
               )}
             </div>
           </>
+        )}
+
+        {/* NOVO: Cadastro de Cliente */}
+        {view === "cadastro_cliente" && (
+          <CadastroClientePage
+            apiBase={apiBase}
+            onClose={() => setView("home")}
+          />
         )}
       </div>
     </div>
