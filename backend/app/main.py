@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import Database
 from app.routers import agenda, auth, funcionarios, financeiro, solicitacoes, ocr, clientes
+import os
+from migrations import run_migrations
 
 app = FastAPI(title="SLion1 Studio")
 
@@ -32,7 +34,10 @@ app.include_router(clientes.router, prefix="/clientes", tags=["clientes"])
 @app.on_event("startup")
 async def startup():
     app.state.db = Database()
-
+    # Executa as migrations
+    run_migrations(app.state.db)
+    print("✅ Backend iniciado com sucesso")
+    
 @app.on_event("shutdown")
 async def shutdown():
     if hasattr(app.state, "db"):

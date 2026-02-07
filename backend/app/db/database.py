@@ -1,26 +1,29 @@
-from datetime import date, timedelta
-import sqlite3
 import os
-
-
-DB_PATH = r"C:\Users\victor.silva\Desktop\Painel\Aplicativo\backend\seu_banco.db"
-
+import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from datetime import date, timedelta
 
 class Database:
-    def __init__(self, db_path: str = DB_PATH):
-        print("USANDO DB:", os.path.abspath(db_path))
-        self.conn = sqlite3.connect(db_path, check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row  # para poder fazer dict(row)
-        self.cursor = self.conn.cursor()
-        self.create_tables()
-        self.criar_tabelas_tatuagem()
-        self.aplicar_migracoes_simples()
-
-        # DEBUG: ver usuários que a API está enxergando
-        self.cursor.execute(
-            "SELECT id, login, senha, tipo, funcionario_id FROM usuarios"
-        )
-        print("USUARIOS NO DB:", self.cursor.fetchall())
+    def __init__(self):
+        database_url = os.getenv("DATABASE_URL")
+        self.is_postgres = bool(database_url)
+        
+        if database_url:
+            # Produção: PostgreSQL (Render)
+            try:
+                self.conn = psycopg2.connect(database_url)
+                self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
+                print("✅ Conectado ao PostgreSQL (Render)")
+            except Exception as e:
+                print(f"❌ Erro ao conectar PostgreSQL: {e}")
+                raise
+        else:
+            # Desenvolvimento: SQLite local
+            self.conn = sqlite3.connect("studio_tattoo.db")
+            self.conn.row_factory = sqlite3.Row
+            self.cursor = self.conn.cursor()
+            print("✅ Conectado ao SQLite local")
 
     # ---------- helpers genéricos ----------
 
@@ -445,7 +448,6 @@ class Database:
         )
         self.conn.commit()
 
-
     # ---------- FUNCIONÁRIOS ----------
 
     def listar_funcionarios(self):
@@ -461,6 +463,8 @@ class Database:
     def obter_funcionario_por_id(self, func_id: int):
         self.cursor.execute(
             """
+            
+
             SELECT id, nome, cargo, perc_funcionario, perc_estudio, requer_aprovacao
             FROM funcionarios
             WHERE id = ?
