@@ -3,3 +3,5 @@ uvicorn[standard]
 python-multipart
 fastapi[all]
 python-multipart
+psycopg2-binary
+
