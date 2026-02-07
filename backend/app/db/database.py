@@ -222,6 +222,34 @@ class Database:
                 "ALTER TABLE funcionarios ADD COLUMN senha TEXT"
             )
 
+        # agendamentos
+        self.cursor.execute("PRAGMA table_info(agendamentos)")
+        cols_ag = [c[1] for c in self.cursor.fetchall()]
+        if "cliente_id" not in cols_ag:
+            self.cursor.execute(
+                "ALTER TABLE agendamentos ADD COLUMN cliente_id INTEGER"
+            )
+        if "status" not in cols_ag:
+            self.cursor.execute(
+                "ALTER TABLE agendamentos ADD COLUMN status TEXT DEFAULT 'pre_cadastro'"
+            )
+
+        # clientes (mantém o que já existe)
+        self.cursor.execute("PRAGMA table_info(clientes)")
+        cols_clientes = [c[1] for c in self.cursor.fetchall()]
+        if "status" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN status TEXT DEFAULT 'pre_cadastro'"
+            )
+        if "tem_ficha" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN tem_ficha BOOLEAN DEFAULT FALSE"
+            )
+        # ... resto das colunas de clientes que você já tem ...
+
+        self.conn.commit()
+
+
         # clientes
         self.cursor.execute("PRAGMA table_info(clientes)")
         cols_clientes = [c[1] for c in self.cursor.fetchall()]
