@@ -7,23 +7,18 @@ from datetime import date, timedelta
 class Database:
     def __init__(self):
         database_url = os.getenv("DATABASE_URL")
-        self.is_postgres = bool(database_url)
+        self.is_postgres = False  # Força SQLite por enquanto
         
-        if database_url:
-            # Produção: PostgreSQL (Render)
-            try:
-                self.conn = psycopg2.connect(database_url)
-                self.cursor = self.conn.cursor(cursor_factory=RealDictCursor)
-                print("✅ Conectado ao PostgreSQL (Render)")
-            except Exception as e:
-                print(f"❌ Erro ao conectar PostgreSQL: {e}")
-                raise
-        else:
-            # Desenvolvimento: SQLite local
-            self.conn = sqlite3.connect("studio_tattoo.db")
-            self.conn.row_factory = sqlite3.Row
-            self.cursor = self.conn.cursor()
-            print("✅ Conectado ao SQLite local")
+        # Comentado por enquanto
+        # if database_url:
+        #     ...PostgreSQL...
+        
+        # Usa sempre SQLite
+        self.conn = sqlite3.connect("studio_tattoo.db")
+        self.conn.row_factory = sqlite3.Row
+        self.cursor = self.conn.cursor()
+        print("✅ Conectado ao SQLite local")
+
 
     # ---------- helpers genéricos ----------
 
