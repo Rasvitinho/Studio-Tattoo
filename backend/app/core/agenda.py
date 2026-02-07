@@ -171,6 +171,7 @@ def criar_agendamento(
 
     aprovado = True
 
+    # Só verifica requer_aprovacao se funcionario_id foi fornecido
     if funcionario_id is not None:
         row = db.obter_funcionario_por_id(funcionario_id)
         if row is not None:
@@ -188,7 +189,8 @@ def criar_agendamento(
         aprovado,
     )
 
-    if not aprovado:
+    # Só cria solicitação se requer aprovação E tem funcionário
+    if not aprovado and funcionario_id is not None:
         agendamento_id = db.cursor.lastrowid
         agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         db.cursor.execute(
