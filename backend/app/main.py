@@ -31,13 +31,15 @@ app.include_router(solicitacoes.router, prefix="/solicitacoes", tags=["solicitac
 app.include_router(ocr.router, prefix="/ocr", tags=["ocr"])
 app.include_router(clientes.router, prefix="/clientes", tags=["clientes"])
 
+
 @app.on_event("startup")
 async def startup():
     app.state.db = Database()
-    # Executa as migrations
-    run_migrations(app.state.db)
+    # Cria as tabelas se não existirem
+    app.state.db.create_tables()
+    app.state.db.aplicar_migracoes_simples()
     print("✅ Backend iniciado com sucesso")
-    
+
 @app.on_event("shutdown")
 async def shutdown():
     if hasattr(app.state, "db"):
