@@ -264,14 +264,26 @@ class Database:
     # ---------- autenticação ----------
 
     def autenticar_usuario(self, login: str, senha: str):
-        self.cursor.execute(
-            """
-            SELECT id, login, tipo, funcionario_id
-            FROM usuarios
-            WHERE login = ? AND senha = ?
-            """,
-            (login, senha),
-        )
+        if self.is_postgres:
+            # PostgreSQL usa %s
+            self.cursor.execute(
+                """
+                SELECT id, login, tipo, funcionario_id
+                FROM usuarios
+                WHERE login = %s AND senha = %s
+                """,
+                (login, senha),
+            )
+        else:
+            # SQLite usa ?
+            self.cursor.execute(
+                """
+                SELECT id, login, tipo, funcionario_id
+                FROM usuarios
+                WHERE login = ? AND senha = ?
+                """,
+                (login, senha),
+            )
         return self.cursor.fetchone()
 
     # ---------- métodos usados pela agenda ----------
