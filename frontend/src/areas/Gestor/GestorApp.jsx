@@ -452,14 +452,13 @@ function GestorApp({ user, apiBase, onLogout }) {
 
   async function criarAgendamentoGestor() {
     if (
-      !novoData ||
-      !novoHorario ||
-      !novoCliente ||
-      !novoServico ||
-      !novoFuncionarioId
-    ) {
-      alert("Preencha TODOS os campos obrigatórios!");
-      return;
+  !novoData ||
+  !novoHorario ||
+  !novoCliente ||
+  !novoServico
+) {
+  alert("Preencha TODOS os campos obrigatórios!");
+  return;
     }
 
     const valorNum = parseFloat(novoValor) || 0;
