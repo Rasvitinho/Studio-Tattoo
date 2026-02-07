@@ -5,23 +5,26 @@ from app.routers import agenda, auth, funcionarios, financeiro, solicitacoes, oc
 import os
 from migrations import run_migrations
 
+
 app = FastAPI(title="SLion1 Studio")
+
 
 # Adiciona CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # desenvolvimento local React
-        "http://localhost:5173",  # se usar Vite
+        "http://localhost:3000",
+        "http://localhost:5173",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:5173",
-        "https://studio-tattoo-git-main-rasvitinhos-projects.vercel.app",  # sua Vercel
-        "*",  # libera qualquer origem em DEV (remova em produção se quiser ser mais restritivo)
+        "https://studio-tattoo-two.vercel.app",  # ← NOVA URL
+        "*",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 app.include_router(agenda.router, prefix="/agenda", tags=["agenda"])
@@ -35,10 +38,10 @@ app.include_router(clientes.router, prefix="/clientes", tags=["clientes"])
 @app.on_event("startup")
 async def startup():
     app.state.db = Database()
-    # Cria as tabelas se não existirem
     app.state.db.create_tables()
     app.state.db.aplicar_migracoes_simples()
     print("✅ Backend iniciado com sucesso")
+
 
 @app.on_event("shutdown")
 async def shutdown():
