@@ -200,7 +200,7 @@ class Database:
         """
         )
         self.conn.commit()
-
+        
     def aplicar_migracoes_simples(self):
         # funcionarios
         self.cursor.execute("PRAGMA table_info(funcionarios)")
@@ -221,6 +221,21 @@ class Database:
             self.cursor.execute(
                 "ALTER TABLE funcionarios ADD COLUMN senha TEXT"
             )
+
+        # clientes
+        self.cursor.execute("PRAGMA table_info(clientes)")
+        cols_clientes = [c[1] for c in self.cursor.fetchall()]
+        if "status" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN status TEXT DEFAULT 'pre_cadastro'"
+            )
+        if "tem_ficha" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN tem_ficha BOOLEAN DEFAULT FALSE"
+            )
+
+        self.conn.commit()
+
 
         # agendamentos
         self.cursor.execute("PRAGMA table_info(agendamentos)")
