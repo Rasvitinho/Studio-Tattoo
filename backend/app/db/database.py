@@ -200,7 +200,7 @@ class Database:
         """
         )
         self.conn.commit()
-        
+
     def aplicar_migracoes_simples(self):
         # funcionarios
         self.cursor.execute("PRAGMA table_info(funcionarios)")
@@ -232,6 +232,50 @@ class Database:
         if "tem_ficha" not in cols_clientes:
             self.cursor.execute(
                 "ALTER TABLE clientes ADD COLUMN tem_ficha BOOLEAN DEFAULT FALSE"
+            )
+        if "data_cadastro" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN data_cadastro DATE"
+            )
+        if "celular" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN celular TEXT"
+            )
+        if "alergias" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN alergias TEXT"
+            )
+        if "usa_pomada_anestesica" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN usa_pomada_anestesica TEXT"
+            )
+        if "fuma" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN fuma TEXT"
+            )
+        if "bebe" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN bebe TEXT"
+            )
+        if "procedimento" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN procedimento TEXT"
+            )
+        if "endereco" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN endereco TEXT"
+            )
+        if "informacao" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN informacao TEXT"
+            )
+        if "valor" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN valor REAL"
+            )
+        if "funcionario_id" not in cols_clientes:
+            self.cursor.execute(
+                "ALTER TABLE clientes ADD COLUMN funcionario_id INTEGER"
             )
 
         self.conn.commit()
