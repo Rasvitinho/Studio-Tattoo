@@ -1,0 +1,234 @@
+/* ========== LISTA ========== */
+.list-section {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.list-section h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+  border-bottom: 3px solid #FFD700;
+  padding-bottom: 10px;
+}
+
+.empty-message {
+  text-align: center;
+  color: #999;
+  padding: 40px 20px;
+  font-size: 1.1rem;
+  font-style: italic;
+}
+
+/* ========== CARDS DE BLOQUEIOS ========== */
+.bloqueios-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 10px;
+}
+
+.bloqueios-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bloqueios-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.bloqueios-list::-webkit-scrollbar-thumb {
+  background: #FF4500;
+  border-radius: 10px;
+}
+
+.bloqueios-list::-webkit-scrollbar-thumb:hover {
+  background: #FF6B35;
+}
+
+.bloqueio-card {
+  background: #f9f9f9;
+  padding: 20px;
+  border-radius: 10px;
+  border-left: 5px solid #ddd;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.bloqueio-dia {
+  border-left-color: #FF4500;
+  background: linear-gradient(135deg, #fff8f3 0%, #fffaf5 100%);
+}
+
+.bloqueio-horario {
+  border-left-color: #FFD700;
+  background: linear-gradient(135deg, #fffef5 0%, #fffcf0 100%);
+}
+
+.bloqueio-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateX(5px);
+}
+
+.bloqueio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+}
+
+.bloqueio-info h3 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+.data-bloqueio {
+  margin: 0;
+  color: #666;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.bloqueio-motivo {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.bloqueio-motivo strong {
+  color: #333;
+}
+
+/* BOTÃO DELETE */
+.btn-delete {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(255, 107, 107, 0.2);
+}
+
+.btn-delete:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+}
+
+.btn-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========== ALERTS ========== */
+.alert {
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert-success {
+  background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+  color: #155724;
+  border-left: 4px solid #28a745;
+}
+
+.alert-error {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  color: #721c24;
+  border-left: 4px solid #dc3545;
+}
+
+/* ========== RESPONSIVO ========== */
+@media (max-width: 1024px) {
+  .bloqueios-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .bloqueios-page {
+    padding: 15px;
+  }
+
+  .bloqueios-page h1 {
+    font-size: 1.8rem;
+  }
+
+  .form-section,
+  .list-section {
+    padding: 20px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .bloqueio-header {
+    flex-direction: column;
+  }
+
+  .btn-delete {
+    align-self: flex-start;
+  }
+
+  .bloqueios-list {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 480px) {
+  .bloqueios-page h1 {
+    font-size: 1.4rem;
+  }
+
+  .form-section,
+  .list-section {
+    padding: 15px;
+  }
+
+  .form-group input,
+  .form-group textarea,
+  .btn-primary {
+    font-size: 16px; /* Previne zoom em iOS */
+  }
+
+  .bloqueio-card {
+    padding: 15px;
+  }
+
+  .bloqueio-info h3 {
+    font-size: 1rem;
+  }
+
+  .data-bloqueio {
+    font-size: 0.85rem;
+  }
+}

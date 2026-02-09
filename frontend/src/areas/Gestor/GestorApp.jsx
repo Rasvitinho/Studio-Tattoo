@@ -7,6 +7,7 @@ import { useTheme } from "../../context/ThemeContext";
 import CadastroClientePage from "./CadastroClientePage";
 import ListaClientesPage from "./ListaClientesPage";
 import ModalPagamento from "./ModalPagamento";
+import { Calendar, Clock, User, AlertCircle, Ban } from 'lucide-react';
 
 const inputStyle = {
   padding: 6,
@@ -44,9 +45,19 @@ function btnStyle(active, primaryColor = "#ff4500") {
 }
 
 function formatDataBr(dataStr) {
-  if (!dataStr) return "-";
-  const [yyyy, mm, dd] = dataStr.split("-");
+  if (!dataStr) return '-';
+  const [yyyy, mm, dd] = dataStr.split('-');
   return `${dd}/${mm}/${yyyy}`;
+}
+
+function formatarHorarios(horarios) {
+  if (!horarios) return '';
+  try {
+    const lista = JSON.parse(horarios);
+    return lista.join(', ');
+  } catch {
+    return horarios;
+  }
 }
 
 function GestorApp({ user, apiBase, onLogout }) {
@@ -63,7 +74,8 @@ function GestorApp({ user, apiBase, onLogout }) {
   const studioLogo = config?.studio_logo || null;
   const menuBgColor = config?.primary_color || "#1a1a1a"; 
   const primaryColor = config?.primary_color || "#ff4500";  
-  
+  const [bloqueiosAtivos, setBloqueiosAtivos] = useState([]);
+ 
 
   // Novo agendamento (gestor)
   const [novoData, setNovoData] = useState("");
@@ -89,6 +101,7 @@ function GestorApp({ user, apiBase, onLogout }) {
   const [editData, setEditData] = useState("");
   const [editHorario, setEditHorario] = useState("");
   const [editValor, setEditValor] = useState("");
+  const [editFuncionarioId, setEditFuncionarioId] = useState("");
 
   // Agenda Geral
   const [dataIniAgenda, setDataIniAgenda] = useState("");
@@ -174,20 +187,30 @@ function GestorApp({ user, apiBase, onLogout }) {
 
 
 
-  async function carregarDashboard() {
-    try {
-      const resp = await axios.get(`${apiBase}/agenda/dashboard/proximos`);
-      setProximosAgendamentos(resp.data);
-    } catch (err) {
-      console.error("Erro ao carregar dashboard:", err);
-    }
-  }
+async function carregarDashboard() {
+  try {
+    const respAg = await axios.get(`${apiBase}/agenda/dashboard/proximos`);
+    const respBl = await axios.get(`${apiBase}/bloqueios/ativos`);
 
-  useEffect(() => {
-    if (view === "dashboard") {
-      carregarDashboard();
-    }
-  }, [view]);
+    setProximosAgendamentos(respAg.data || []);
+    console.log("DEBUG proximos agendamentos (dashboard):", respAg.data);
+    setBloqueiosAtivos(respBl.data || []);
+  } catch (err) {
+    console.error("Erro ao carregar dashboard:", err);
+    setProximosAgendamentos([]);
+    setBloqueiosAtivos([]);
+  }
+}
+
+useEffect(() => {
+  if (user && view === "dashboard") {
+    carregarDashboard();
+  }
+}, [user, view, apiBase]);
+
+
+
+
 
   async function carregarListaFuncionarios() {
     try {
@@ -331,6 +354,7 @@ function GestorApp({ user, apiBase, onLogout }) {
 
       const resp = await axios.get(baseUrl, { params });
       setAgendamentosGeral(resp.data);
+      console.log("DEBUG agenda geral depois do PUT:", resp.data);
     } catch (err) {
       console.error("Erro ao carregar agenda geral:", err);
     }
@@ -364,12 +388,14 @@ function GestorApp({ user, apiBase, onLogout }) {
     try {
       await axios.delete(`${apiBase}/agenda/${agendamentoId}`);
       alert("Agendamento removido com sucesso!");
-      carregarAgendaGeral();
+      await carregarAgendaGeral();
+      await carregarDashboard(); // <-- ADICIONE ISSO
     } catch (err) {
       console.error("Erro ao remover agendamento:", err);
       alert("Erro ao remover agendamento.");
     }
   }
+
 
   function editarAgendamento(agendamento) {
     setAgendamentoEmEdicao(agendamento);
@@ -380,8 +406,12 @@ function GestorApp({ user, apiBase, onLogout }) {
         ? String(agendamento.valor_previsto)
         : ""
     );
+    setEditFuncionarioId(
+      agendamento.funcionario_id != null ? String(agendamento.funcionario_id) : ""
+    );
     setEditModalOpen(true);
   }
+
 
   async function salvarEdicaoAgendamento() {
     if (!agendamentoEmEdicao) return;
@@ -392,25 +422,33 @@ function GestorApp({ user, apiBase, onLogout }) {
     }
 
     const novoValorNum = Number(String(editValor).replace(",", "."));
+    const cliente =
+      agendamentoEmEdicao.cliente_nome || agendamentoEmEdicao.cliente || "";
 
     try {
       await axios.put(`${apiBase}/agenda/${agendamentoEmEdicao.id}`, {
         data: editData,
         horario: editHorario,
-        cliente: agendamentoEmEdicao.cliente,
+        cliente,
         servico: agendamentoEmEdicao.servico,
         valor_previsto: isNaN(novoValorNum)
           ? agendamentoEmEdicao.valor_previsto
           : novoValorNum,
-        funcionario_id: agendamentoEmEdicao.funcionario_id,
+        funcionario_id: editFuncionarioId
+          ? Number(editFuncionarioId)
+          : agendamentoEmEdicao.funcionario_id ?? null,
       });
 
       alert("Agendamento atualizado com sucesso!");
       setEditModalOpen(false);
       setAgendamentoEmEdicao(null);
-      carregarAgendaGeral();
+      await carregarAgendaGeral();
+      await carregarDashboard();
     } catch (err) {
-      console.error("Erro ao editar agendamento:", err);
+      console.log(
+        "Erro ao editar agendamento DETAIL:",
+        JSON.stringify(err.response?.data, null, 2)
+      );
       alert("Erro ao editar agendamento.");
     }
   }
@@ -565,6 +603,12 @@ function GestorApp({ user, apiBase, onLogout }) {
           <br />
           <small style={{ fontSize: 12 }}>{user.login}</small>
         </h3>
+        <button 
+          style={btnStyle(view === 'dashboard', config?.primarycolor || '#ff4500')} 
+          onClick={() => setView('dashboard')}
+        >
+          Dashboard
+        </button>
         <button
           style={btnStyle(view === "agenda", config?.primary_color || "#ff4500")}
           onClick={() => setView("agenda")}
@@ -686,46 +730,163 @@ function GestorApp({ user, apiBase, onLogout }) {
               <div className="layout-main">
 
         {/* Dashboard */}
-        {view === "dashboard" && (
-          <>
-            <h2>Dashboard</h2>
+        {view === 'dashboard' && (
+          <div style={{ padding: '20px' }}>
+            <h2>Dashboard do Gestor</h2>
 
-            <div className="table-wrapper" style={{ marginTop: 12 }}>
-              <h3>Próximos agendamentos</h3>
-              <table className="gestor-table">
-                <thead>
-                  <tr>
-                    <th className="gestor-th">Data</th>
-                    <th className="gestor-th">Hora</th>
-                    <th className="gestor-th">Cliente</th>
-                    <th className="gestor-th">Serviço</th>
-                    <th className="gestor-th">Funcionário</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {proximosAgendamentos.map((a) => (
-                    <tr key={a.id}>
-                      <td className="gestor-td">{formatDataBr(a.data)}</td>
-                      <td className="gestor-td">{a.horario}</td>
-                      <td className="gestor-td">{a.cliente}</td>
-                      <td className="gestor-td">{a.servico}</td>
-                      <td className="gestor-td">{a.funcionario ?? "-"}</td>
-                    </tr>
-                  ))}
-                  {proximosAgendamentos.length === 0 && (
-                    <tr>
-                      <td className="gestor-td" colSpan={5}>
-                        Nenhum agendamento encontrado.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            {/* Próximos 10 Agendamentos */}
+            <div style={{ marginTop: '20px', marginBottom: '30px', background: '#fff', padding: '16px', borderRadius: '8px', boxShadow: '0 0 6px rgba(0,0,0,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <Calendar size={24} style={{ color: '#007bff' }} />
+                <h3 style={{ margin: 0 }}>Próximos 10 Agendamentos</h3>
+              </div>
+
+              {proximosAgendamentos.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#666', padding: '20px 0' }}>
+                  Nenhum agendamento próximo encontrado.
+                </p>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="gestor-table">
+                    <thead>
+                      <tr>
+                        <th className="gestor-th">Data</th>
+                        <th className="gestor-th">Horário</th>
+                        <th className="gestor-th">Cliente</th>
+                        <th className="gestor-th">Serviço</th>
+                        <th className="gestor-th">Funcionário</th>
+                        <th className="gestor-th">Valor</th>
+                        <th className="gestor-th">Status</th>
+                        <th className="gestor-th">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proximosAgendamentos.map((a) => (
+                        <tr key={a.id}>
+                          <td className="gestor-td">{formatDataBr(a.data)}</td>
+                          <td className="gestor-td">
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <Clock size={14} style={{ color: "#666" }} />
+                              {a.horario}
+                            </div>
+                          </td>
+                          <td className="gestor-td">{a.cliente_nome || a.cliente}</td>
+                          <td className="gestor-td">{a.servico}</td>
+                          <td className="gestor-td">
+                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <User size={14} style={{ color: "#666" }} />
+                              {a.funcionario_nome || a.funcionario || "-"}
+                            </div>
+                          </td>
+                          <td
+                            className="gestor-td"
+                            style={{ textAlign: "right", fontWeight: "bold", color: "#28a745" }}
+                          >
+                            {a.valor_previsto ? `R$ ${a.valor_previsto.toFixed(2)}` : "-"}
+                          </td>
+                          <td className="gestor-td" style={{ textAlign: "center" }}>
+                            <span
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "12px",
+                                fontSize: "12px",
+                                fontWeight: "bold",
+                                background: a.pago ? "#d4edda" : "#fff3cd",
+                                color: a.pago ? "#155724" : "#856404",
+                              }}
+                            >
+                              {a.pago ? "Pago" : "Pendente"}
+                            </span>
+                          </td>
+                          <td className="gestor-td">
+                            <button
+                              onClick={() => editarAgendamento(a)}
+                              className="gestor-btn gestor-btn-edit"
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              onClick={() => removerAgendamento(a.id)}
+                              className="gestor-btn gestor-btn-remove"
+                            >
+                              Remover
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+              </div>
+              )}
             </div>
-          </>
+
+            {/* Bloqueios Ativos */}
+            <div style={{ background: '#fff', padding: '16px', borderRadius: '8px', boxShadow: '0 0 6px rgba(0,0,0,0.1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <Ban size={24} style={{ color: '#dc3545' }} />
+                <h3 style={{ margin: 0 }}>Bloqueios Ativos</h3>
+              </div>
+
+              {bloqueiosAtivos.length === 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '20px 0', color: '#666' }}>
+                  <AlertCircle size={20} />
+                  <p style={{ margin: 0 }}>Nenhum bloqueio ativo no momento.</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="gestor-table">
+                    <thead>
+                      <tr>
+                        <th className="gestor-th">Funcionário</th>
+                        <th className="gestor-th">Data</th>
+                        <th className="gestor-th">Tipo</th>
+                        <th className="gestor-th">Horários</th>
+                        <th className="gestor-th">Motivo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bloqueiosAtivos.map((bloqueio) => (
+                        <tr key={bloqueio.id} style={{ background: bloqueio.tipo_bloqueio === 'dia_completo' ? '#fee' : '#ffe' }}>
+                          <td className="gestor-td">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <User size={14} style={{ color: '#666' }} />
+                              {bloqueio.funcionario_nome || 'Desconhecido'}
+                            </div>
+                          </td>
+                          <td className="gestor-td">{formatDataBr(bloqueio.data)}</td>
+                          <td className="gestor-td">
+                            <span style={{
+                              padding: '4px 8px',
+                              borderRadius: '12px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                              background: bloqueio.tipo_bloqueio === 'dia_completo' ? '#f8d7da' : '#fff3cd',
+                              color: bloqueio.tipo_bloqueio === 'dia_completo' ? '#721c24' : '#856404'
+                            }}>
+                              {bloqueio.tipo_bloqueio === 'dia_completo' ? 'Dia Completo' : 'Horários Específicos'}
+                            </span>
+                          </td>
+                          <td className="gestor-td">
+                            {bloqueio.tipo_bloqueio === 'horarios_especificos' 
+                              ? formatarHorarios(bloqueio.horarios_bloqueados)
+                              : '-'}
+                          </td>
+                          <td className="gestor-td" style={{ color: '#666' }}>
+                            {bloqueio.motivo || 'Sem motivo informado'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
-              {view === "cadastro_cliente" && (
+
+        {view === "cadastro_cliente" && (
           <CadastroClientePage apiBase={apiBase} />
         )}
 
@@ -809,113 +970,7 @@ function GestorApp({ user, apiBase, onLogout }) {
               >
                 Carregar
               </button>
-
-              {editModalOpen && agendamentoEmEdicao && (
-                <div
-                  onClick={fecharModalEdicao}
-                  style={{
-                    position: "fixed",
-                    inset: 0,
-                    background: "rgba(0,0,0,0.4)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    zIndex: 1000,
-                  }}
-                >
-                  <div
-                    onClick={(e) => e.stopPropagation()}
-                    style={{
-                      background: "#fff",
-                      padding: 16,
-                      borderRadius: 8,
-                      width: "90%",
-                      maxWidth: 400,
-                      boxShadow: "0 0 10px rgba(0,0,0,0.25)",
-                    }}
-                  >
-                    <h3>Editar agendamento</h3>
-                    <p style={{ fontSize: 14, marginBottom: 8 }}>
-                      Cliente: <strong>{agendamentoEmEdicao.cliente}</strong>
-                      <br />
-                      Serviço: <strong>{agendamentoEmEdicao.servico}</strong>
-                    </p>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                      }}
-                    >
-                      <label>
-                        Data:
-                        <input
-                          type="date"
-                          value={editData}
-                          onChange={(e) => setEditData(e.target.value)}
-                          style={{ ...inputStyle, width: "100%" }}
-                        />
-                      </label>
-                      <label>
-                        Horário:
-                        <input
-                          type="time"
-                          value={editHorario}
-                          onChange={(e) => setEditHorario(e.target.value)}
-                          style={{ ...inputStyle, width: "100%" }}
-                        />
-                      </label>
-                      <label>
-                        Valor previsto:
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={editValor}
-                          onChange={(e) => setEditValor(e.target.value)}
-                          style={{ ...inputStyle, width: "100%" }}
-                        />
-                      </label>
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 8,
-                        marginTop: 12,
-                      }}
-                    >
-                      <button
-                        onClick={fecharModalEdicao}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: 4,
-                          border: "none",
-                          background: "#6c757d",
-                          color: "#fff",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={salvarEdicaoAgendamento}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: 4,
-                          border: "none",
-                          background: "#28a745",
-                          color: "#fff",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Salvar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              
               {view === "cadastro_cliente" && (
                 <CadastroClientePage apiBase={apiBase} />
               )}
@@ -1451,6 +1506,129 @@ function GestorApp({ user, apiBase, onLogout }) {
         </div>
       )}
     </div>
+    {editModalOpen && agendamentoEmEdicao && (
+      <div
+        onClick={fecharModalEdicao}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.4)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: "#fff",
+            padding: 16,
+            borderRadius: 8,
+            width: "90%",
+            maxWidth: 400,
+            boxShadow: "0 0 10px rgba(0,0,0,0.25)",
+          }}
+        >
+          <h3>Editar agendamento</h3>
+          <p style={{ fontSize: 14, marginBottom: 8 }}>
+            Cliente: <strong>{agendamentoEmEdicao.cliente}</strong>
+            <br />
+            Serviço: <strong>{agendamentoEmEdicao.servico}</strong>
+          </p>
+
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <label>
+              Data:
+              <input
+                type="date"
+                value={editData}
+                onChange={(e) => setEditData(e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </label>
+            <label>
+              Horário:
+              <input
+                type="time"
+                value={editHorario}
+                onChange={(e) => setEditHorario(e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </label>
+            <label>
+              Valor previsto:
+              <input
+                type="number"
+                step="0.01"
+                value={editValor}
+                onChange={(e) => setEditValor(e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            </label>
+            <label>
+              Funcionário:
+              <select
+                value={editFuncionarioId}
+                onChange={(e) => setEditFuncionarioId(e.target.value)}
+                style={{ ...inputStyle, width: "100%" }}
+              >
+                <option value="">Selecione</option>
+                {funcionarios &&
+                  Array.isArray(funcionarios) &&
+                  funcionarios.map((func) => (
+                    <option key={func.id} value={func.id}>
+                      {func.nome}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <button
+              onClick={fecharModalEdicao}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 4,
+                border: "none",
+                background: "#6c757d",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={salvarEdicaoAgendamento}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 4,
+                border: "none",
+                background: "#28a745",
+                color: "#fff",
+                cursor: "pointer",
+              }}
+            >
+              Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <ModalPagamento
           isOpen={showModalPagamento}
           agendamento={agendamentoParaPagamento}

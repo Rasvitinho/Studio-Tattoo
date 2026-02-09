@@ -3,6 +3,7 @@ import axios from "axios";
 import { useStudioConfig } from "../../context/StudioConfigContext";
 import { useTheme } from "../../context/ThemeContext";
 import CadastroClientePage from "../Gestor/CadastroClientePage";
+import BloqueiosPage from "./BloqueiosPage"; //
 
 const inputStyle = {
   padding: 6,
@@ -337,13 +338,29 @@ function FuncionarioApp({ user, apiBase, onLogout }) {
           Minhas finanças
         </button>
 
-        {/* NOVO: Cadastro de Cliente */}
+                {/* Cadastro de Cliente */}
         <button
           style={btnStyle(view === "cadastro_cliente", primaryColor)}
           onClick={() => setView("cadastro_cliente")}
         >
           Cadastro de Cliente
         </button>
+
+        {/* ✅ NOVO: Botão de Bloqueios */}
+        <button
+          style={btnStyle(view === "bloqueios", primaryColor)}
+          onClick={() => setView("bloqueios")}
+        >
+          📅 Gerenciar Bloqueios
+        </button>
+
+        <button
+          style={btnStyle(false, "#555")}
+          onClick={toggleTheme}
+        >
+          Tema: {theme === "dark" ? "Claro" : "Escuro"}
+        </button>
+
 
         <button
           style={btnStyle(false, "#555")}
@@ -787,6 +804,10 @@ function FuncionarioApp({ user, apiBase, onLogout }) {
             apiBase={apiBase}
             onClose={() => setView("home")}
           />
+        )}
+                {/* ✅ NOVO: Página de Bloqueios */}
+        {view === "bloqueios" && (
+          <BloqueiosPage user={user} apiBase={apiBase} />
         )}
       </div>
     </div>

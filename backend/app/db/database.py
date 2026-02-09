@@ -82,6 +82,71 @@ class Database:
 
         self.cursor.execute(
             """
+            CREATE TABLE IF NOT EXISTS bloqueios_funcionario (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                funcionario_id INTEGER NOT NULL,
+                data DATE,
+                horario_inicio TIME,
+                horario_fim TIME,
+                tipo TEXT DEFAULT 'dia',
+                motivo TEXT,
+                data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id)
+            )
+        """
+        )
+
+        self.cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS bloqueios_funcionario (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            funcionario_id INTEGER NOT NULL,
+            data DATE,
+            horario_inicio TIME,
+            horario_fim TIME,
+            tipo TEXT DEFAULT 'dia',
+            motivo TEXT,
+            data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id)
+        )
+    """
+    )
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS bloqueios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                funcionario_id INTEGER NOT NULL,
+                data TEXT NOT NULL,
+                tipo_bloqueio TEXT NOT NULL,
+                horarios_bloqueados TEXT,
+                motivo TEXT,
+                criado_em TEXT,
+                FOREIGN KEY (funcionario_id) REFERENCES funcionarios(id)
+            )
+            """
+        )
+
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS bloqueios_historico (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                gestor_id INTEGER NOT NULL,
+                funcionario_id INTEGER NOT NULL,
+                data TEXT NOT NULL,
+                tipo_bloqueio TEXT NOT NULL,      -- 'dia_completo' ou 'horarios_especificos'
+                horarios_bloqueados TEXT,         -- JSON string com horários, se aplicável
+                acao TEXT NOT NULL,               -- 'bloquear' ou 'desbloquear'
+                motivo TEXT,
+                criado_em TEXT DEFAULT (datetime('now'))
+            )
+            """
+        )
+
+        
+        self.conn.commit()
+
+        self.cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS agendamentos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 data TEXT,
@@ -612,10 +677,29 @@ class Database:
             (nome, cargo, perc_funcionario, perc_estudio, requer_aprovacao, senha, func_id),
         )
         self.conn.commit()
+    def remover_funcionario(self, funcionario_id: int) -> bool:
+        # Remove bloqueios do funcionário
+        self.cursor.execute(
+            "DELETE FROM bloqueios WHERE funcionario_id = ?",
+            (funcionario_id,),
+        )
 
-    def remover_funcionario(self, func_id: int):
-        self.cursor.execute("DELETE FROM funcionarios WHERE id = ?", (func_id,))
+        # Remove usuários vinculados a esse funcionário
+        self.cursor.execute(
+            "DELETE FROM usuarios WHERE funcionario_id = ?",
+            (funcionario_id,),
+        )
+
+        # Remove o próprio funcionário
+        self.cursor.execute(
+            "DELETE FROM funcionarios WHERE id = ?",
+            (funcionario_id,),
+        )
+
+        removidos = self.cursor.rowcount
         self.conn.commit()
+        return removidos > 0
+
 
     def get_exige_aprovacao_funcionario(self, funcionario_id: int) -> int:
         self.cursor.execute(
@@ -843,3 +927,166 @@ class Database:
             total_piercer_comissao,
             total_tatuador_comissao,
         )
+
+    # ---------- BLOQUEIOS DE FUNCIONÁRIO ----------
+
+    def registrar_historico_bloqueio(
+        self,
+        gestor_id: int,
+        funcionario_id: int,
+        data: str,
+        tipo_bloqueio: str,
+        horarios_bloqueados: str | None,
+        acao: str,
+        motivo: str | None = None,
+    ):
+        """
+        Registra uma ação de bloqueio/desbloqueio feita pelo gestor
+        na tabela bloqueios_historico.
+        """
+        self.cursor.execute(
+            """
+            INSERT INTO bloqueios_historico 
+                (gestor_id, funcionario_id, data, tipo_bloqueio, horarios_bloqueados, acao, motivo)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (gestor_id, funcionario_id, data, tipo_bloqueio, horarios_bloqueados, acao, motivo),
+        )
+        self.conn.commit()
+
+
+    def criar_bloqueio(self, funcionario_id, data, tipo_bloqueio, horarios_bloqueados=None, motivo=None):
+        """
+        Cria um novo bloqueio para um funcionário.
+        
+        Args:
+            funcionario_id: ID do funcionário
+            data: Data do bloqueio (formato YYYY-MM-DD)
+            tipo_bloqueio: 'dia_completo' ou 'horarios_especificos'
+            horarios_bloqueados: JSON string com array de horários (opcional)
+            motivo: Motivo do bloqueio (opcional)
+        
+        Returns:
+            ID do bloqueio criado
+        """
+        self.cursor.execute(
+            """
+            INSERT INTO bloqueios (funcionario_id, data, tipo_bloqueio, horarios_bloqueados, motivo, criado_em)
+            VALUES (?, ?, ?, ?, ?, datetime('now'))
+            """,
+            (funcionario_id, data, tipo_bloqueio, horarios_bloqueados, motivo)
+        )
+        self.conn.commit()
+        return self.cursor.lastrowid
+
+
+    def listar_bloqueios_por_funcionario(self, funcionario_id):
+        """
+        Lista todos os bloqueios de um funcionário específico.
+        """
+        self.cursor.execute(
+            """
+            SELECT 
+                id,
+                funcionario_id,
+                data,
+                tipo_bloqueio,
+                horarios_bloqueados,
+                motivo,
+                criado_em
+            FROM bloqueios
+            WHERE funcionario_id = ?
+            ORDER BY data DESC
+            """,
+            (funcionario_id,)
+        )
+        
+        rows = self.cursor.fetchall()
+        resultado = []
+        
+        for row in rows:
+            bloqueio = {
+                "id": row[0],
+                "funcionario_id": row[1],
+                "data": row[2],
+                "tipo_bloqueio": row[3],
+                "horarios_bloqueados": row[4],
+                "motivo": row[5],
+                "criado_em": row[6],
+            }
+            resultado.append(bloqueio)
+        
+        return resultado
+
+
+    def remover_bloqueio(self, bloqueio_id):
+        """
+        Remove um bloqueio pelo ID.
+        """
+        self.cursor.execute(
+            "DELETE FROM bloqueios WHERE id = ?",
+            (bloqueio_id,)
+        )
+        self.conn.commit()
+        return self.cursor.rowcount > 0
+
+
+    def verificar_bloqueio(self, funcionario_id, data, horario):
+        """
+        Verifica se existe bloqueio para um funcionário em uma data/horário específico.
+        
+        Returns:
+            Dict com informações do bloqueio se existir, None caso contrário
+        """
+        print(f"\n🔍 VERIFICAR_BLOQUEIO:")
+        print(f"   funcionario_id: {funcionario_id}")
+        print(f"   data: {data}")
+        print(f"   horario: {horario}")
+        
+        self.cursor.execute(
+            """
+            SELECT id, tipo_bloqueio, horarios_bloqueados, motivo
+            FROM bloqueios
+            WHERE funcionario_id = ? AND data = ?
+            """,
+            (funcionario_id, data)
+        )
+        
+        row = self.cursor.fetchone()
+        print(f"   Query resultado: {row}")
+        
+        if not row:
+            print(f"   ❌ Nenhum bloqueio encontrado")
+            return None
+        
+        bloqueio = {
+            "id": row[0],
+            "tipo_bloqueio": row[1],
+            "horarios_bloqueados": row[2],
+            "motivo": row[3]
+        }
+        
+        print(f"   📌 Bloqueio encontrado: {bloqueio}")
+        
+        # Se for dia completo, retorna o bloqueio
+        if bloqueio["tipo_bloqueio"] == "dia_completo":
+            print(f"   🚫 DIA COMPLETO BLOQUEADO!")
+            return bloqueio
+        
+        # Se for horários específicos, verifica se o horário está na lista
+        if bloqueio["tipo_bloqueio"] == "horarios_especificos" and bloqueio["horarios_bloqueados"]:
+            try:
+                import json
+                horarios_lista = json.loads(bloqueio["horarios_bloqueados"])
+                print(f"   📋 Horários bloqueados: {horarios_lista}")
+                print(f"   🔍 Verificando se {horario} está em {horarios_lista}")
+                if horario in horarios_lista:
+                    print(f"   🚫 HORÁRIO BLOQUEADO!")
+                    return bloqueio
+                else:
+                    print(f"   ✅ Horário não está bloqueado")
+            except Exception as e:
+                print(f"   ❌ Erro ao parsear horários: {e}")
+        
+        print(f"   ✅ Sem bloqueio para este horário")
+        return None

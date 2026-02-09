@@ -23,7 +23,21 @@ function App() {
         login,
         senha,
       });
+      
+      console.log("RESPOSTA DO LOGIN:", resp.data);
+      
+      // ✅ SALVAR O TOKEN TAMBÉM
+      if (resp.data.token) {
+        localStorage.setItem('token', resp.data.token);
+      }
+      
+      if (resp.data.funcionario_id) {
+        localStorage.setItem('user_id', resp.data.funcionario_id);
+        localStorage.setItem('funcionario_id', resp.data.funcionario_id);
+      }
+      
       setUser(resp.data);
+      
     } catch (err) {
       console.error("LOGIN ERRO", err.response?.status, err.response?.data);
       if (err.response?.status === 401) {
@@ -33,6 +47,7 @@ function App() {
       }
     }
   }
+
 
   function handleLogout() {
     window.location.reload();
