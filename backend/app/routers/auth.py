@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
-import jwt
+from jose import jwt
 import os
 
 from app.db.database import Database
