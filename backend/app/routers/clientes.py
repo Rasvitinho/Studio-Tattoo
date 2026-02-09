@@ -3,6 +3,7 @@ from app.db.database import Database
 import os
 from datetime import datetime
 import shutil
+import sqlite3  # <-- para tratar erro de tabela inexistente
 
 router = APIRouter()
 
@@ -10,9 +11,11 @@ router = APIRouter()
 FICHAS_DIR = "uploads/fichas"
 os.makedirs(FICHAS_DIR, exist_ok=True)
 
+
 def get_db():
     """Dependency para obter a instância do banco"""
     return Database()
+
 
 @router.get("/")
 async def listar_clientes(db: Database = Depends(get_db)):
@@ -27,6 +30,7 @@ async def listar_clientes(db: Database = Depends(get_db)):
     )
     rows = db.cursor.fetchall()
     return [dict(row) for row in rows]
+
 
 @router.post("/")
 async def criar_cliente(data: dict, db: Database = Depends(get_db)):
@@ -48,6 +52,7 @@ async def criar_cliente(data: dict, db: Database = Depends(get_db)):
     )
     db.conn.commit()
     return {"id": db.cursor.lastrowid, "message": "Cliente criado"}
+
 
 @router.put("/{cliente_id}")
 async def atualizar_cliente(cliente_id: int, data: dict, db: Database = Depends(get_db)):
@@ -76,6 +81,7 @@ async def atualizar_cliente(cliente_id: int, data: dict, db: Database = Depends(
     db.conn.commit()
     return {"message": "Cliente atualizado"}
 
+
 @router.delete("/{cliente_id}")
 async def deletar_cliente(cliente_id: int, db: Database = Depends(get_db)):
     """Deleta um cliente"""
@@ -89,25 +95,30 @@ async def deletar_cliente(cliente_id: int, db: Database = Depends(get_db)):
     db.conn.commit()
     return {"message": "Cliente deletado"}
 
+
 @router.post("/{cliente_id}/upload-ficha")
-async def upload_ficha(cliente_id: int, file: UploadFile = File(...), db: Database = Depends(get_db)):
+async def upload_ficha(
+    cliente_id: int,
+    file: UploadFile = File(...),
+    db: Database = Depends(get_db),
+):
     """Faz upload da ficha de cadastro (foto) para um cliente"""
-    
+
     # Validar se cliente existe
     db.cursor.execute("SELECT id FROM clientes WHERE id = ?", (cliente_id,))
     if not db.cursor.fetchone():
         return {"error": "Cliente não encontrado"}, 404
-    
+
     try:
         # Criar caminho do arquivo
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"cliente_{cliente_id}_{timestamp}_{file.filename}"
         filepath = os.path.join(FICHAS_DIR, filename)
-        
+
         # Salvar arquivo
         with open(filepath, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-        
+
         # Atualizar no banco que tem ficha
         db.cursor.execute(
             """
@@ -118,40 +129,57 @@ async def upload_ficha(cliente_id: int, file: UploadFile = File(...), db: Databa
             (True, filepath, cliente_id),
         )
         db.conn.commit()
-        
+
         return {
             "success": True,
             "message": "Ficha anexada com sucesso",
             "filename": filename,
             "filepath": filepath,
         }
-    
+
     except Exception as e:
         return {"error": str(e), "detail": "Erro ao salvar a ficha"}, 500
 
+
 @router.get("/{cliente_id}/historico")
 async def listar_historico_cliente(cliente_id: int, db: Database = Depends(get_db)):
-    """Lista o histórico de atendimentos/pagamentos do cliente"""
-    db.cursor.execute(
-        """
-        SELECT id, tipo, descricao, valor, funcionario_id, data_registro
-        FROM cliente_historico
-        WHERE cliente_id = ?
-        ORDER BY data_registro DESC
-        """,
-        (cliente_id,),
-    )
-    rows = db.cursor.fetchall()
+    """Lista o histórico de atendimentos/pagamentos do cliente.
+
+    Se a tabela cliente_historico não existir (ex.: banco novo na Render),
+    retorna lista vazia em vez de derrubar o servidor.
+    """
+    try:
+        db.cursor.execute(
+            """
+            SELECT id, tipo, descricao, valor, funcionario_id, data_registro
+            FROM cliente_historico
+            WHERE cliente_id = ?
+            ORDER BY data_registro DESC
+            """,
+            (cliente_id,),
+        )
+        rows = db.cursor.fetchall()
+    except sqlite3.OperationalError as e:
+        if "no such table: cliente_historico" in str(e):
+            rows = []
+        else:
+            raise
+
     return [dict(row) for row in rows]
+
 
 @router.post("/{cliente_id}/historico")
 async def adicionar_historico(cliente_id: int, data: dict, db: Database = Depends(get_db)):
-    """Adiciona um novo registro no histórico"""
+    """Adiciona um novo registro no histórico.
+
+    Se a tabela cliente_historico não existir, retorna erro amigável.
+    """
+
     # Validar se cliente existe
     db.cursor.execute("SELECT id FROM clientes WHERE id = ?", (cliente_id,))
     if not db.cursor.fetchone():
         return {"error": "Cliente não encontrado"}, 404
-    
+
     try:
         db.cursor.execute(
             """
@@ -168,6 +196,11 @@ async def adicionar_historico(cliente_id: int, data: dict, db: Database = Depend
         )
         db.conn.commit()
         return {"id": db.cursor.lastrowid, "message": "Histórico adicionado"}
-    
-    except Exception as e:
+
+    except sqlite3.OperationalError as e:
+        if "no such table: cliente_historico" in str(e):
+            return {
+                "error": "Tabela cliente_historico não existe no banco",
+                "detail": str(e),
+            }, 500
         return {"error": str(e), "detail": "Erro ao adicionar histórico"}, 500
